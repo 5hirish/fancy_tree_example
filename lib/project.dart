@@ -17,16 +17,17 @@ class ProjectExplorer extends ConsumerStatefulWidget {
 
 class ProjectExplorerState extends ConsumerState<ProjectExplorer> {
   late final TreeController<FileSystemEntity> _treeController;
-  Map<String, List<FileSystemEntity>> _projectFiles = {};
+  late final ProjectFiles projectFiles;
   final Set<String> _loadingFiles = {};
 
   @override
   void initState() {
     super.initState();
+    projectFiles = ref.read(projectFilesProvider.notifier);
     _treeController = TreeController<FileSystemEntity>(
       roots: [],   // initialize with your roots
       childrenProvider: (FileSystemEntity parent) {
-        return _projectFiles[parent.path] ?? const Iterable.empty();
+        return projectFiles.getProjectParentFiles(parent.path) ?? const Iterable.empty();
       },
     );
   }
@@ -50,17 +51,18 @@ class ProjectExplorerState extends ConsumerState<ProjectExplorer> {
   }
 
   Widget getProjectFilesTree(BuildContext context, WidgetRef ref) {
+    final roots = ref.read(projectFilesProvider.notifier).getProjectRootFiles() ?? [];
 
-    if (_projectFiles == null) {
+    if (roots.isEmpty) {
       return const Center(
           child: Padding(
             padding: EdgeInsets.all(8.0),
             child: Text("Select a project"),
           )
       );
+    } else {
+      _treeController.roots = roots;
     }
-
-    _treeController.roots = ref.read(projectFilesProvider.notifier).getProjectRootFiles() ?? [];
 
     return TreeView<FileSystemEntity>(
       treeController: _treeController,
@@ -113,7 +115,7 @@ class ProjectExplorerState extends ConsumerState<ProjectExplorer> {
 
     _loadingFiles.add(file.path);
 
-    _projectFiles = await ref.read(projectFilesProvider.notifier).loadChildren(file.path) ?? {};
+    await ref.read(projectFilesProvider.notifier).loadChildren(file.path);
 
     _loadingFiles.remove(file.path);
 
